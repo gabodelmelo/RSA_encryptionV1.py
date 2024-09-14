@@ -1,3 +1,5 @@
+# pip install Crypto
+ 
 import io
 from Crypto.PublicKey import RSA
 from Crypto.Random import get_random_bytes
@@ -5,83 +7,83 @@ from Crypto.Cipher import AES, PKCS1_OAEP
 
 def key_generator():
 
-# Generar pareja de claves RSA de 3072 bits de longitud
+# Generate pair of RSA key of 3072 bits 
     key = RSA.generate(3072)
 
-# Passphrase para encriptar la clave privada
+# Passphrase to encrypt the private key
     #username = input("Introduce your username: ")
     secret_code = input("Create a password: ")
 
-# Exportamos la clave privada
+# Export private key
     private_key = key.export_key(passphrase=secret_code)
 
-#Guardamos la clave privada en un fichero
+# save the private key on a file
     with open("private.pem", "wb") as f:
         f.write(private_key)
 
-#Obtenemos la clave pública
+# get the public key
     public_key = key.publickey().export_key()
 
-#Guardamos la clave pública en otro fichero
+# save the public key on a file
     with open("public.pem", "wb") as f:
         f.write(public_key)
 
 
 def cipher():
 
-#encriptar mensaje utf-8
+# encrypt message with utf-8
     cadena = input("Message: ")
     bin_data = cadena.encode("utf-8")
 
-#Leemos el archivo con la clave publica
+# read the file with public key
     with open("public.pem", "rb") as f:
         recipient_key = f.read()
 
-#Cargamos la clave pública (instancia de clase RSA)
+# import the public key
     key = RSA.importKey(recipient_key)
 
-#cifrador asimétrico
+# asymetric cipher
     cipher_rsa = PKCS1_OAEP.new(key)
 
-#Generamos una clave para el cifrado simétrico
+# generate a key for the cipher
     aes_key = get_random_bytes(16)
 
-#Encriptamos la clave del cifrado simétrico con la clave pública RSA
+# encrypt the key of the simetric cypher with public RSA key
     enc_aes_key = cipher_rsa.encrypt(aes_key)
 
-#Encriptamos los datos mediante cifrado simétrico (AES en este caso)
+# encrypt the data with simetric cipher
     cipher_aes = AES.new(aes_key, AES.MODE_EAX)
     ciphertext, tag = cipher_aes.encrypt_and_digest(bin_data)
 
-#Concatenamos la clave simétrica cifrada a los datos cifrados con ella
+#Concatenate the encrypted symmetric key to the data encrypted with it
     enc_data = b"".join((enc_aes_key, cipher_aes.nonce, tag, ciphertext))
     return enc_data
 
 
 def decipher(enc_data):
-#Emulamos un fichero con nuestra cadena porque el método read facilita la división de cada parte de la cadena (datos y clave AES encriptada).
+# emulate a file with our string because the read method facilitates the division of each part of the string (data and encrypted AES key).
     data_file = io.BytesIO(enc_data)
 
-#Leemos el archivo con la clave privada
+# read the file with the private key
     with open("private.pem", "rb") as f:
         recipient_key = f.read()
 
-    passphrase = input("Introduce tu contraseña: ")
+    passphrase = input("Password: ")
 
-#Cargamos la clave pública (instancia de clase RSA)
+# We load the public key (RSA class instance)
     key = RSA.importKey(recipient_key,  passphrase)
 
-#Instancia del cifrador asimétrico
+# Asymmetric cipher instance
     cipher_rsa = PKCS1_OAEP.new(key)
 
-#Separamos las distintas partes de la cadena cifrada
+# Separate the different parts of the encrypted string
     enc_aes_key, nonce, tag, ciphertext =\
         (data_file.read(c) for c in (key.size_in_bytes(), 16, 16, -1))
 
-#Desencriptamos la clave AES mediante la clave privada RSA
+# We decrypt the AES key using the RSA private key.
     aes_key = cipher_rsa.decrypt(enc_aes_key)
 
-#Desencriptamos los datos en si con la clave AES
+# We decrypt the data itself using the AES key
     cipher_aes = AES.new(aes_key, AES.MODE_EAX, nonce)
     data = cipher_aes.decrypt_and_verify(ciphertext, tag)
 
